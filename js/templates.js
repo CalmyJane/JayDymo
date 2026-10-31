@@ -39,14 +39,14 @@ function splitSender(b) {
 // Sender block with logo top-left, divider, large receiver block.
 function shipping(b, paperId) {
   const doc = newDoc(paperId, 'Landscape'), { w: W, h: H } = labelSize(doc), s = splitSender(b);
-  const m = 4, logo = 15;
+  const m = 4, l = LEAD_MARGIN + 1.5, logo = 15, x = l + logo + 3;
   doc.objects.push(
-    makeObject('image', { name: 'Logo', x: m, y: m, w: logo, h: logo, src: b.logo }),
-    makeObject('text', { name: 'Sender name', x: m + logo + 3, y: m, w: W - 2 * m - logo - 3, h: 5, text: s.name, size: 9, bold: true, valign: 'top' }),
-    makeObject('text', { name: 'Sender address', x: m + logo + 3, y: m + 5, w: W - 2 * m - logo - 3, h: logo - 5, text: s.rest.join('\n'), size: 7, valign: 'top' }),
-    makeObject('shape', { name: 'Divider', shape: 'line', x: m, y: m + logo + 2, w: W - 2 * m, h: 1, stroke: 0.3 }),
-    makeObject('text', { name: 'To', x: m, y: m + logo + 6, w: 10, h: 5, text: 'TO:', size: 8, bold: true, valign: 'top' }),
-    makeObject('text', { name: 'Receiver', x: m + 11, y: m + logo + 6, w: W - 2 * m - 11, h: H - (m + logo + 6) - m, text: SAMPLE_RECEIVER, size: 14, valign: 'top' }),
+    makeObject('image', { name: 'Logo', x: l, y: m, w: logo, h: logo, src: b.logo }),
+    makeObject('text', { name: 'Sender name', x, y: m, w: W - x - m, h: 5, text: s.name, size: 9, bold: true, valign: 'top' }),
+    makeObject('text', { name: 'Sender address', x, y: m + 5, w: W - x - m, h: logo - 5, text: s.rest.join('\n'), size: 7, valign: 'top' }),
+    makeObject('shape', { name: 'Divider', shape: 'line', x: l, y: m + logo + 2, w: W - l - m, h: 1, stroke: 0.3 }),
+    makeObject('text', { name: 'To', x: l, y: m + logo + 6, w: 10, h: 5, text: 'TO:', size: 8, bold: true, valign: 'top' }),
+    makeObject('text', { name: 'Receiver', x: l + 11, y: m + logo + 6, w: W - l - 11 - m, h: H - (m + logo + 6) - m, text: SAMPLE_RECEIVER, size: 14, valign: 'top' }),
   );
   return doc;
 }
@@ -54,9 +54,9 @@ function shipping(b, paperId) {
 // DIN-style: square logo on the left, one-line return address above the receiver.
 function largeAddress(b, paperId) {
   const doc = newDoc(paperId, 'Landscape'), { w: W, h: H } = labelSize(doc), s = splitSender(b);
-  const m = 3, logo = H - 2 * m, x = m + logo + 3;
+  const m = 3, l = LEAD_MARGIN + 1, logo = H - 2 * m, x = l + logo + 3;
   doc.objects.push(
-    makeObject('image', { name: 'Logo', x: m, y: m, w: logo, h: logo, src: b.logo }),
+    makeObject('image', { name: 'Logo', x: l, y: m, w: logo, h: logo, src: b.logo }),
     makeObject('text', { name: 'Return address', x, y: m, w: W - x - m, h: 3.5, text: [s.name, ...s.rest].join(' · '), size: 6, underline: true, valign: 'top' }),
     makeObject('text', { name: 'Receiver', x, y: m + 5, w: W - x - m, h: H - m - 5 - m, text: SAMPLE_RECEIVER, size: 11, valign: 'middle' }),
   );
@@ -66,9 +66,9 @@ function largeAddress(b, paperId) {
 // Return / sender address label with logo.
 function senderLabel(b, paperId) {
   const doc = newDoc(paperId, 'Landscape'), { w: W, h: H } = labelSize(doc), s = splitSender(b);
-  const m = 3, logo = H - 2 * m, x = m + logo + 3;
+  const m = 3, l = LEAD_MARGIN + 1, logo = H - 2 * m, x = l + logo + 3;
   doc.objects.push(
-    makeObject('image', { name: 'Logo', x: m, y: m, w: logo, h: logo, src: b.logo }),
+    makeObject('image', { name: 'Logo', x: l, y: m, w: logo, h: logo, src: b.logo }),
     makeObject('text', { name: 'Sender name', x, y: m, w: W - x - m, h: 6, text: s.name, size: 11, bold: true, valign: 'top' }),
     makeObject('text', { name: 'Sender address', x, y: m + 6.5, w: W - x - m, h: H - m - 6.5 - m, text: s.rest.join('\n'), size: 8, valign: 'top' }),
   );

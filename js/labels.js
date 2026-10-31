@@ -51,3 +51,18 @@ function labelSize(doc) {
   const p = doc.paper;
   return doc.orientation === 'Landscape' ? { w: p.h, h: p.w } : { w: p.w, h: p.h };
 }
+
+// The LabelWriter cannot print the first ~5.8 mm (0.23") at the start of each label,
+// nor ~1.5 mm along the other edges. DYMO's own software uses the same printable area.
+const LEAD_MARGIN = 5.85, EDGE_MARGIN = 1.5;
+function printableArea(doc) {
+  const { w, h } = labelSize(doc);
+  return doc.orientation === 'Landscape'
+    ? { x: LEAD_MARGIN, y: EDGE_MARGIN, w: w - LEAD_MARGIN - EDGE_MARGIN, h: h - 2 * EDGE_MARGIN }
+    : { x: EDGE_MARGIN, y: LEAD_MARGIN, w: w - 2 * EDGE_MARGIN, h: h - LEAD_MARGIN - EDGE_MARGIN };
+}
+// Objects that reach into the area the printer cannot print.
+function outsidePrintable(doc) {
+  const a = printableArea(doc), t = 0.2;
+  return doc.objects.filter(o => o.x < a.x - t || o.y < a.y - t || o.x + o.w > a.x + a.w + t || o.y + o.h > a.y + a.h + t);
+}

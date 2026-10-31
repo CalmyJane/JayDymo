@@ -93,3 +93,5 @@ dialog textarea { width: 100%; }
 body.desktop .desktopOnly { display: block; }
 body.desktop .webOnly { display: none; }
 #paperSelect { max-width: 240px; }
+.warn { background: #fff4e5; color: #8a4b00; border-radius: 6px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.warn[hidden] { display: none; }

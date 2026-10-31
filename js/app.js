@@ -184,10 +184,17 @@
   });
 
   // ---------- print ----------
+  async function updatePrintPreview() {
+    $('#printPreview').src = await Printing.previewPng(E.doc);
+    const out = outsidePrintable(E.doc);
+    $('#printWarn').hidden = !out.length;
+    $('#printWarn span').textContent = out.length ? `${out.map(o => o.name).join(', ')} ${out.length > 1 ? 'reach' : 'reaches'} into the border the printer can't print (hatched in the editor) and will be cut off.` : '';
+  }
+  $('#printFix').onclick = async () => { E.fitPrintable(); await updatePrintPreview(); };
   async function cmdPrint() {
     const d = $('#dlgPrint'), { w, h } = labelSize(E.doc);
     $('#printInfo').textContent = `${paperTitle(findPaper(E.doc.paper.id) || E.doc.paper)} · ${round(w, 1)} × ${round(h, 1)} mm. Preview shows the 300 dpi black & white result.`;
-    $('#printPreview').src = await Printing.previewPng(E.doc);
+    await updatePrintPreview();
     d.returnValue = '';
     if (DESKTOP) {
       // Windows app: list installed printers, preselect the last used / a DYMO LabelWriter.
