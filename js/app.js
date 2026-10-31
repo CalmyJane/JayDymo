@@ -4,7 +4,10 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const E = Editor;
-  const file = { name: 'label', format: 'label', handle: null };
+  const file = { name: 'label', format: 'label', handle: null, diskPath: null };
+  // Set when running inside the JayDymo.exe desktop wrapper (token for its local file API).
+  const params = new URLSearchParams(location.search);
+  const DESKTOP = params.get('desktop');
   const FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Calibri', 'Futura', 'Gill Sans', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Consolas', 'Impact', 'Arial Narrow', 'Roboto', 'Open Sans', 'DejaVu Sans', 'Liberation Sans'];
   $('#fonts').innerHTML = FONTS.map(f => `<option value="${f}">`).join('');
   $('#paperSelect').innerHTML = PAPERS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
@@ -28,10 +31,10 @@
     file.format = isConnect ? 'dymo' : 'label';
     return doc;
   }
-  async function openFile(f, handle = null) {
+  async function openFile(f, handle = null, diskPath = null) {
     try {
       const doc = readDoc(await f.text(), f.name);
-      file.handle = handle;
+      file.handle = handle; file.diskPath = diskPath;
       E.setDoc(doc); syncTop(); E.onCommit(E.doc);
       const raw = doc.objects.filter(o => o.type === 'raw').length;
       if (raw) toast(`${raw} object(s) of an unsupported type are shown as placeholders and kept when saving.`);
@@ -50,6 +53,13 @@
 
   async function serialize(fmt) { return fmt === 'dymo' ? DymoConnect.write(E.doc) : DymoLabel.write(E.doc); }
   async function cmdSave() {
+    if (file.diskPath && DESKTOP) {
+      try {
+        const r = await fetch('/api/file?path=' + encodeURIComponent(file.diskPath), { method: 'POST', headers: { 'X-JayDymo': DESKTOP }, body: await serialize(file.format) });
+        if (!r.ok) throw new Error(await r.text());
+        return toast('Saved ' + file.diskPath);
+      } catch (e) { return alert('Save failed: ' + e.message); }
+    }
     if (!file.handle) return cmdSaveAs();
     try {
       const w = await file.handle.createWritable(); await w.write(await serialize(file.format)); await w.close();
@@ -70,10 +80,10 @@
         try {
           const h = await showSaveFilePicker({ suggestedName: `${name}.${fmt}`, types: [{ description: fmt === 'dymo' ? 'DYMO Connect label' : 'DYMO label', accept: { 'application/xml': ['.' + fmt] } }] });
           const w = await h.createWritable(); await w.write(xml); await w.close();
-          file.handle = h; file.name = h.name.replace(/\.\w+$/, ''); syncTop(); toast('Saved ' + h.name); return;
+          file.handle = h; file.diskPath = null; file.name = h.name.replace(/\.\w+$/, ''); syncTop(); toast('Saved ' + h.name); return;
         } catch (e) { if (e.name === 'AbortError') return; }
       }
-      download(`${name}.${fmt}`, xml); file.handle = null; syncTop();
+      download(`${name}.${fmt}`, xml); file.handle = null; file.diskPath = null; syncTop();
     };
   }
   function download(name, text) {
@@ -257,4 +267,12 @@
   else { E.setDoc(TEMPLATES[1].build(Brand.get())); file.name = 'shipping'; }
   syncTop();
   requestAnimationFrame(() => E.fit());
+  // Desktop: a .label/.dymo file passed on the command line ("Open with" / double-click).
+  const openPath = params.get('open');
+  if (DESKTOP && openPath) {
+    fetch('/api/file?path=' + encodeURIComponent(openPath), { headers: { 'X-JayDymo': DESKTOP } })
+      .then(r => r.ok ? r.text() : Promise.reject(new Error(r.statusText)))
+      .then(text => openFile({ name: openPath.split(/[\\/]/).pop(), text: async () => text }, null, openPath))
+      .catch(e => alert('Could not open ' + openPath + ':\n' + e.message));
+  }
 })();

@@ -3,8 +3,22 @@
 A small, dependency‑free label editor for the **DYMO LabelWriter 450** (and other LabelWriters).
 It opens and saves DYMO files, and it prints through the normal printer driver, so you don't need DYMO's software.
 
-**Run it:** open `index.html` in Chrome, Edge or Firefox. There's no install and no build step, and it works offline.
-For in‑place *Save* (instead of a download), use Chrome or Edge.
+## Run it
+
+**Windows:** run `JayDymo.exe`. It's a single file of about 6 MB, needs no installation and works offline.
+It uses the Edge WebView2 runtime that ships with Windows 10/11.
+- The exe isn't code‑signed, so on first start Windows may say *"Windows protected your PC"*. Click **More info → Run anyway**.
+- To open DYMO files by double‑click: right‑click a `.label` or `.dymo` file, choose **Open with → Choose another app**, pick `JayDymo.exe` and tick *Always*.
+  **Save** then writes straight back to that file.
+- Settings (brand, last label) are stored in `%LOCALAPPDATA%\JayDymo`.
+
+**Without the exe:** open `index.html` in Chrome or Edge. This works on any OS.
+
+### Build the exe
+
+Install Go 1.22 or newer, then run `./build.sh`. The result is `dist/JayDymo.exe`.
+It cross‑compiles from Windows, macOS or Linux, with no C compiler or other tools needed.
+Every push also builds it with GitHub Actions; download it from the run's *Artifacts*.
 
 ## Features
 
@@ -47,6 +61,10 @@ You can also drop images or `.label`/`.dymo` files onto the canvas, or paste ima
 ## Files
 
 ```
+main_windows.go       Windows exe: native window (WebView2) around the app
+server.go             embedded files + local file API for open/save
+build.sh              builds dist/JayDymo.exe
+build/winres/         app icon + manifest generator
 index.html            UI
 css/app.css           styles
 js/labels.js          DYMO paper sizes
