@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JayDymo – Label Editor</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Jay<b>Dymo</b></div>
+  <div class="group">
+    <button data-cmd="new" title="New from template">New</button>
+    <button data-cmd="open" title="Open .label / .dymo (Ctrl+O)">Open</button>
+    <button data-cmd="save" title="Save (Ctrl+S)">Save</button>
+    <button data-cmd="saveAs" title="Save as .label or .dymo">Save as…</button>
+  </div>
+  <div class="group">
+    <button data-cmd="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button data-cmd="redo" title="Redo (Ctrl+Y)">↷</button>
+  </div>
+  <div class="group">
+    <select id="paperSelect" title="Label type"></select>
+    <button data-cmd="orientation" id="orientBtn" title="Toggle orientation">Landscape</button>
+  </div>
+  <div class="group">
+    <button data-cmd="zoomOut" title="Zoom out">−</button>
+    <span id="zoomLabel">100%</span>
+    <button data-cmd="zoomIn" title="Zoom in">+</button>
+    <button data-cmd="zoomFit" title="Fit to window">Fit</button>
+    <label class="toggle" title="Show how the thermal printer renders it (black/white)"><input type="checkbox" id="monoToggle"> B/W</label>
+    <label class="toggle" title="Snap to grid and guides (hold Alt to bypass)"><input type="checkbox" id="snapToggle" checked> Snap</label>
+  </div>
+  <div class="spacer"></div>
+  <button data-cmd="brand" title="Sender address and logo used by templates">Brand</button>
+  <button data-cmd="print" class="primary" title="Print (Ctrl+P)">Print</button>
+</header>
+
+<main>
+  <nav class="tools">
+    <button data-add="text" title="Text (T)"><svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14"/></svg><span>Text</span></button>
+    <button data-add="image" title="Image / SVG file"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m3 18 6-5 4 3 3-2 5 4"/></svg><span>Image</span></button>
+    <button data-add="icon" title="Icon"><svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg><span>Icon</span></button>
+    <button data-add="rect" title="Rectangle"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12"/></svg><span>Box</span></button>
+    <button data-add="ellipse" title="Ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6"/></svg><span>Ellipse</span></button>
+    <button data-add="line" title="Line"><svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg><span>Line</span></button>
+    <button data-add="code128" title="Barcode (Code 128)"><svg viewBox="0 0 24 24"><path d="M4 5v14M7 5v14M9 5v14M13 5v14M15 5v14M18 5v14M20 5v14"/></svg><span>Barcode</span></button>
+    <button data-add="qr" title="QR code"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg><span>QR</span></button>
+  </nav>
+
+  <section class="stage" id="stage">
+    <div class="canvasWrap" id="canvasWrap">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+        <defs id="canvasDefs"></defs>
+        <g id="labelLayer"></g>
+        <g id="objLayer"></g>
+        <g id="overlay"></g>
+      </svg>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <aside class="panel">
+    <div id="props"></div>
+    <h3>Objects</h3>
+    <ul id="layers"></ul>
+  </aside>
+</main>
+
+<!-- dialogs -->
+<dialog id="dlgNew">
+  <form method="dialog">
+    <h2>New label</h2>
+    <div id="tplList" class="tplList"></div>
+    <menu><button value="cancel">Cancel</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgIcon">
+  <form method="dialog">
+    <h2>Insert icon</h2>
+    <div id="iconGrid" class="iconGrid"></div>
+    <menu><button value="cancel">Cancel</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgBrand">
+  <form method="dialog">
+    <h2>Brand</h2>
+    <p class="hint">Used by the address templates.</p>
+    <label>Sender address (first line = name)<textarea id="brandSender" rows="5"></textarea></label>
+    <div class="logoRow">
+      <img id="brandLogo" alt="Logo">
+      <div>
+        <button type="button" id="brandLogoPick">Choose logo…</button>
+        <button type="button" id="brandLogoReset">Reset</button>
+        <p class="hint">Square PNG, JPG or SVG works best. High-contrast black &amp; white prints best on thermal labels.</p>
+      </div>
+    </div>
+    <menu><button value="cancel">Cancel</button><button value="ok" class="primary" id="brandSave">Save</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgSaveAs">
+  <form method="dialog">
+    <h2>Save as</h2>
+    <label>File name <input id="saveName" value="label"></label>
+    <label class="radio"><input type="radio" name="fmt" value="label" checked> <b>.label</b> &nbsp;DYMO Label Software 8 &amp; DYMO Connect</label>
+    <label class="radio"><input type="radio" name="fmt" value="dymo"> <b>.dymo</b> &nbsp;DYMO Connect</label>
+    <menu><button value="cancel">Cancel</button><button value="ok" class="primary">Save</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlgPrint">
+  <form method="dialog">
+    <h2>Print</h2>
+    <div class="printPreview"><img id="printPreview" alt="Preview"></div>
+    <p class="hint" id="printInfo"></p>
+    <label>Copies <input type="number" id="printCopies" value="1" min="1" max="999"></label>
+    <label class="radio"><input type="radio" name="via" value="system" checked> System print dialog (works with the installed printer driver on Windows, macOS &amp; Linux)</label>
+    <div class="sub" id="systemOpts">
+      <label class="check"><input type="checkbox" id="printRotate" checked> Rotate to feed direction (portrait page, recommended)</label>
+      <label class="check"><input type="checkbox" id="printFlip"> Turn 180°</label>
+    </div>
+    <label class="radio"><input type="radio" name="via" value="dymo"> DYMO Web Service (if DYMO Connect / DLS is installed) <span id="dymoStatus" class="hint"></span></label>
+    <div class="sub" id="dymoOpts"><select id="dymoPrinter"></select></div>
+    <menu><button value="cancel">Cancel</button><button value="ok" class="primary" id="printGo">Print</button></menu>
+  </form>
+</dialog>
+
+<input type="file" id="fileOpen" accept=".label,.dymo,.xml" hidden>
+<input type="file" id="fileImage" accept="image/*,.svg" hidden>
+<input type="file" id="fileLogo" accept="image/*,.svg" hidden>
+<datalist id="fonts"></datalist>
+
+<script src="js/labels.js"></script>
+<script src="js/model.js"></script>
+<script src="js/barcode.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/render.js"></script>
+<script src="js/formats/common.js"></script>
+<script src="js/formats/dymo-label.js"></script>
+<script src="js/formats/dymo-connect.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/print.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
