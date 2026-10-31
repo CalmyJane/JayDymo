@@ -36,10 +36,11 @@ Every push also builds it with GitHub Actions; download it from the run's *Artif
   Click **Brand** to set your sender address and upload your logo (the Calmy Jane logo). It's stored in the browser and used by all templates.
   The logo that ships with the app is only a placeholder.
 - **Printing:**
-  - **System print dialog** (recommended): the page size matches the label exactly and is rotated to the printer's feed direction. In the dialog, pick the DYMO printer and the matching paper size, and set the margins to *none*.
-    If a label comes out upside down, tick *Turn 180°*.
-  - **DYMO Web Service:** if DYMO Connect or DYMO Label Software is running, JayDymo can send the label straight to it.
-  - The print preview shows the 300 dpi black & white result.
+  - **Windows app:** prints directly, with no system print dialog. Press **Print** (or Ctrl+P), check the preview, pick the printer and copies, and press Enter.
+    The label is sent exactly as designed (300 dpi black & white), and JayDymo picks the matching DYMO paper size in the driver automatically.
+    If labels come out upside down, tick *Turn 180°* (it's remembered).
+  - **Browser version:** uses the system print dialog. There, pick the DYMO printer and the matching paper size, and set the margins to *none*.
+  - **DYMO Web Service** (browser version): if DYMO Connect or DYMO Label Software is running, JayDymo can send the label straight to it.
 
 ## Shortcuts
 

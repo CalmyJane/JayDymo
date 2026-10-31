@@ -89,3 +89,7 @@ dialog textarea { width: 100%; }
   .tools { width: 56px; }
   .tools span { display: none; }
 }
+.desktopOnly { display: none; }
+body.desktop .desktopOnly { display: block; }
+body.desktop .webOnly { display: none; }
+#paperSelect { max-width: 240px; }

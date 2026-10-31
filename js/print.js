@@ -3,7 +3,10 @@
 
 const Printing = (() => {
   // 300 dpi black/white simulation of the thermal print head (Floyd–Steinberg dithering).
-  async function previewPng(doc) {
+  async function previewPng(doc) { return (await renderMono(doc)).toDataURL('image/png'); }
+
+  // The label exactly as designed, as 300 dpi black/white canvas (what the print head prints).
+  async function renderMono(doc, flip = false) {
     const { w, h } = labelSize(doc);
     const pw = Math.round(w / DOT), ph = Math.round(h / DOT);
     const c = await Render.rasterize(Render.labelSvg(doc), pw, ph);
@@ -17,8 +20,27 @@ const Printing = (() => {
     }
     for (let i = 0; i < pw * ph; i++) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = lum[i]; d[i * 4 + 3] = 255; }
     g.putImageData(img, 0, 0);
-    return c.toDataURL('image/png');
+    if (!flip) return c;
+    const r = document.createElement('canvas'); r.width = pw; r.height = ph;
+    const rg = r.getContext('2d'); rg.translate(pw, ph); rg.rotate(Math.PI); rg.drawImage(c, 0, 0);
+    return r;
   }
+
+  // Desktop app (JayDymo.exe): sends the rendered label straight to a Windows printer, no dialog.
+  const Direct = {
+    token: new URLSearchParams(location.search).get('desktop'),
+    async printers() {
+      const r = await fetch('/api/printers', { headers: { 'X-JayDymo': this.token } });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    async print(doc, printer, copies, flip) {
+      const png = (await renderMono(doc, flip)).toDataURL('image/png').split(',')[1];
+      const job = { printer, copies, landscape: doc.orientation === 'Landscape', paperW: doc.paper.w, paperH: doc.paper.h, paperId: doc.paper.id, png };
+      const r = await fetch('/api/print', { method: 'POST', headers: { 'X-JayDymo': this.token, 'Content-Type': 'application/json' }, body: JSON.stringify(job) });
+      if (!r.ok) throw new Error(await r.text());
+    },
+  };
 
   // Prints through the OS print dialog using an exact @page size.
   function systemPrint(doc, { copies = 1, rotate = true, flip = false } = {}) {
@@ -80,5 +102,5 @@ const Printing = (() => {
     },
   };
 
-  return { previewPng, systemPrint, Service };
+  return { previewPng, renderMono, systemPrint, Service, Direct };
 })();

@@ -8,6 +8,7 @@
   // Set when running inside the JayDymo.exe desktop wrapper (token for its local file API).
   const params = new URLSearchParams(location.search);
   const DESKTOP = params.get('desktop');
+  if (DESKTOP) document.body.classList.add('desktop');
   const FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Calibri', 'Futura', 'Gill Sans', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Consolas', 'Impact', 'Arial Narrow', 'Roboto', 'Open Sans', 'DejaVu Sans', 'Liberation Sans'];
   $('#fonts').innerHTML = FONTS.map(f => `<option value="${f}">`).join('');
   $('#paperSelect').innerHTML = PAPERS.map(p => `<option value="${p.id}">${paperTitle(p)}</option>`).join('');
@@ -187,8 +188,20 @@
     const d = $('#dlgPrint'), { w, h } = labelSize(E.doc);
     $('#printInfo').textContent = `${paperTitle(findPaper(E.doc.paper.id) || E.doc.paper)} · ${round(w, 1)} × ${round(h, 1)} mm. Preview shows the 300 dpi black & white result.`;
     $('#printPreview').src = await Printing.previewPng(E.doc);
+    d.returnValue = '';
+    if (DESKTOP) {
+      // Windows app: list installed printers, preselect the last used / a DYMO LabelWriter.
+      const sel = $('#winPrinter'), last = localStorage.getItem('jaydymo.printer');
+      try {
+        const { printers, default: def } = await Printing.Direct.printers();
+        const pick = printers.includes(last) ? last : printers.find(n => /dymo|labelwriter/i.test(n)) || def;
+        sel.innerHTML = printers.map(n => `<option ${n === pick ? 'selected' : ''}>${escXml(n)}</option>`).join('') || '<option value="">No printers installed</option>';
+      } catch (e) { sel.innerHTML = `<option value="">${escXml(e.message)}</option>`; }
+      d.showModal(); $('#printGo').focus();
+      return;
+    }
     $('#dymoStatus').textContent = '(checking…)';
-    d.returnValue = ''; d.showModal();
+    d.showModal();
     Printing.Service.printers().then(list => {
       $('#dymoPrinter').innerHTML = list.map(n => `<option ${/450/.test(n) ? 'selected' : ''}>${escXml(n)}</option>`).join('');
       $('#dymoStatus').textContent = list.length ? `(${list.length} printer${list.length > 1 ? 's' : ''} found)` : '(not running)';
@@ -198,6 +211,15 @@
   $('#dlgPrint').addEventListener('close', async () => {
     const d = $('#dlgPrint'); if (d.returnValue !== 'ok') return;
     const via = d.querySelector('input[name=via]:checked').value, copies = Math.max(1, +$('#printCopies').value || 1);
+    if (DESKTOP) {
+      const printer = $('#winPrinter').value;
+      if (!printer) return alert('No printer selected.');
+      try { localStorage.setItem('jaydymo.printer', printer); localStorage.setItem('jaydymo.print', JSON.stringify({ flip: $('#printFlip').checked })); } catch { }
+      toast('Printing…');
+      try { await Printing.Direct.print(E.doc, printer, copies, $('#printFlip').checked); toast(`Sent ${copies} label${copies > 1 ? 's' : ''} to ${printer}`); }
+      catch (e) { alert('Printing failed: ' + e.message); }
+      return;
+    }
     try { localStorage.setItem('jaydymo.via', via); localStorage.setItem('jaydymo.print', JSON.stringify({ rotate: $('#printRotate').checked, flip: $('#printFlip').checked })); } catch { }
     if (via === 'dymo') {
       const p = $('#dymoPrinter').value;

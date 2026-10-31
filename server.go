@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"image/png"
 	"io"
 	"net"
 	"net/http"
@@ -89,7 +93,57 @@ func handler(token string) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+	// Printers installed in the OS and direct (dialog-free) printing.
+	mux.HandleFunc("/api/printers", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-JayDymo") != token {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		names, def, err := listPrinters()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotImplemented)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"printers": names, "default": def})
+	})
+	mux.HandleFunc("/api/print", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-JayDymo") != token || r.Method != http.MethodPost {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		var job printJob
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<20)).Decode(&job); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		raw, err := base64.StdEncoding.DecodeString(job.PNG)
+		if err != nil {
+			http.Error(w, "bad image", http.StatusBadRequest)
+			return
+		}
+		img, err := png.Decode(bytes.NewReader(raw))
+		if err != nil {
+			http.Error(w, "bad image", http.StatusBadRequest)
+			return
+		}
+		if err := printImage(job, img); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
 	return mux
+}
+
+// printJob is one label print request from the editor.
+type printJob struct {
+	Printer   string  `json:"printer"`
+	Copies    int     `json:"copies"`
+	Landscape bool    `json:"landscape"`
+	PaperW    float64 `json:"paperW"` // mm across the roll
+	PaperH    float64 `json:"paperH"` // mm along the roll
+	PaperID   string  `json:"paperId"`
+	PNG       string  `json:"png"` // base64 PNG of the label as designed, 300 dpi
 }
 
 func randomToken() string {
