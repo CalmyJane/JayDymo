@@ -10,7 +10,7 @@
   const DESKTOP = params.get('desktop');
   const FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Calibri', 'Futura', 'Gill Sans', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Consolas', 'Impact', 'Arial Narrow', 'Roboto', 'Open Sans', 'DejaVu Sans', 'Liberation Sans'];
   $('#fonts').innerHTML = FONTS.map(f => `<option value="${f}">`).join('');
-  $('#paperSelect').innerHTML = PAPERS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  $('#paperSelect').innerHTML = PAPERS.map(p => `<option value="${p.id}">${paperTitle(p)}</option>`).join('');
 
   // ---------- autosave ----------
   E.onCommit = (doc) => {
@@ -145,14 +145,14 @@
   function cmdNew() {
     const b = Brand.get();
     $('#tplList').innerHTML = TEMPLATES.map(t => {
-      const d = t.build(b, E.doc.paper.id);
+      const d = t.build(b);
       return `<button value="${t.id}"><img src="${svgDataUrl(Render.labelSvg(d))}" alt=""><span>${t.name}</span></button>`;
     }).join('');
     $('#dlgNew').returnValue = ''; $('#dlgNew').showModal();
   }
   $('#dlgNew').addEventListener('close', () => {
     const t = TEMPLATES.find(t => t.id === $('#dlgNew').returnValue); if (!t) return;
-    E.setDoc(t.build(Brand.get(), E.doc.paper.id));
+    E.setDoc(t.build(Brand.get()));
     Object.assign(file, { name: t.id === 'blank' ? 'label' : t.id, format: 'label', handle: null });
     syncTop(); E.onCommit(E.doc);
   });
@@ -185,7 +185,7 @@
   // ---------- print ----------
   async function cmdPrint() {
     const d = $('#dlgPrint'), { w, h } = labelSize(E.doc);
-    $('#printInfo').textContent = `${E.doc.paper.name} · ${round(w, 1)} × ${round(h, 1)} mm. Preview shows the 300 dpi black & white result.`;
+    $('#printInfo').textContent = `${paperTitle(findPaper(E.doc.paper.id) || E.doc.paper)} · ${round(w, 1)} × ${round(h, 1)} mm. Preview shows the 300 dpi black & white result.`;
     $('#printPreview').src = await Printing.previewPng(E.doc);
     $('#dymoStatus').textContent = '(checking…)';
     d.returnValue = ''; d.showModal();

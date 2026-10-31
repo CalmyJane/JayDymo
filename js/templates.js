@@ -23,8 +23,8 @@ const Brand = {
 };
 
 const TEMPLATES = [
-  { id: 'blank',     name: 'Blank label',                       build: (b, p = '99014') => newDoc(p) },
-  { id: 'ship99014', name: 'Shipping label 99014 (54×101 mm)',  build: (b) => shipping(b, '99014') },
+  { id: 'blank',     name: 'Blank label',                       build: () => newDoc('99014') },
+  { id: 'ship99014', name: 'Shipping label S0722430 / 99014 (54×101 mm)',  build: (b) => shipping(b, '99014') },
   { id: 'ship30256', name: 'Shipping label 30256 (59×102 mm)',  build: (b) => shipping(b, '30256') },
   { id: 'addr99012', name: 'Large address 99012 (36×89 mm)',    build: (b) => largeAddress(b, '99012') },
   { id: 'addr30321', name: 'Large address 30321 (36×89 mm)',    build: (b) => largeAddress(b, '30321') },

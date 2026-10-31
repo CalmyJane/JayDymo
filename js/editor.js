@@ -91,7 +91,7 @@ const Editor = (() => {
 
   function status(pt) {
     const { w, h } = size(), sel = selected();
-    let s = `${E.doc.paper.name} · ${round(w, 1)} × ${round(h, 1)} mm · ${E.doc.orientation}`;
+    let s = `${paperTitle(findPaper(E.doc.paper.id) || E.doc.paper)} · ${round(w, 1)} × ${round(h, 1)} mm · ${E.doc.orientation}`;
     if (sel.length === 1) { const o = sel[0]; s += ` — ${o.name}: X ${round(o.x, 1)} Y ${round(o.y, 1)} W ${round(o.w, 1)} H ${round(o.h, 1)} mm`; }
     else if (sel.length > 1) s += ` — ${sel.length} objects selected`;
     if (pt) s += ` · cursor ${round(pt.x, 1)}, ${round(pt.y, 1)}`;
@@ -379,7 +379,7 @@ const Editor = (() => {
 
   function labelProps() {
     const d = E.doc, { w, h } = size();
-    let s = '<h3>Label</h3>' + row(field.select('Label type', 'paper', { paper: d.paper.id }, PAPERS.map(p => [p.id, p.name])));
+    let s = '<h3>Label</h3>' + row(field.select('Label type', 'paper', { paper: d.paper.id }, PAPERS.map(p => [p.id, paperTitle(p)])));
     s += row(`<label>Orientation${field.seg('orientation', d, [['Landscape', 'Landscape'], ['Portrait', 'Portrait']])}</label>`);
     if (d.paper.id === 'custom') s += row(field.num('Width across roll (mm)', 'pw', { pw: d.paper.w }, 1, 10), field.num('Length (mm)', 'ph', { ph: d.paper.h }, 1, 10));
     s += `<p class="hint">${round(w, 1)} × ${round(h, 1)} mm. The dashed line marks a safe 1.5 mm margin.</p>`;

@@ -4,7 +4,7 @@
 // exactly as the DYMO driver defines the paper (portrait).
 // twW/twH are the original twip sizes used in DYMO .label files.
 const PAPERS = [
-  { id: '99014', name: '99014 Shipping',              w: 54,   h: 101,  twW: 3060, twH: 5726, labelId: 'Shipping',      connect: 'Shipping99014' },
+  { id: '99014', name: '99014 Shipping', title: 'Shipping / Name Badge 54×101 (S0722430 / 99014)', alias: 's0722430', w: 54, h: 101,  twW: 3060, twH: 5726, labelId: 'Shipping',      connect: 'Shipping99014' },
   { id: '30256', name: '30256 Shipping',              w: 59,   h: 102,  twW: 3331, twH: 5715, labelId: 'LargeShipping', connect: 'Shipping30256' },
   { id: '30323', name: '30323 Shipping',              w: 54,   h: 102,  twW: 3060, twH: 5760, labelId: 'Shipping',      connect: 'Shipping30323' },
   { id: '99012', name: '99012 Large Address',         w: 36,   h: 89,   twW: 2041, twH: 5040, labelId: 'LargeAddress',  connect: 'LargeAddress99012' },
@@ -32,7 +32,7 @@ function findPaper(idOrName) {
   if (!idOrName) return null;
   const s = String(idOrName).toLowerCase();
   return PAPERS.find(p => p.id === s) ||
-         PAPERS.find(p => s.includes(p.id)) ||
+         PAPERS.find(p => s.includes(p.id) || (p.alias && s.includes(p.alias))) ||
          PAPERS.find(p => p.name.toLowerCase() === s) || null;
 }
 
@@ -42,6 +42,9 @@ function findPaperBySize(w, h) {
   return PAPERS.find(p => !p.custom &&
     Math.abs(Math.min(p.w, p.h) - a) < 1.5 && Math.abs(Math.max(p.w, p.h) - b) < 1.5) || null;
 }
+
+// Name shown in the UI (the .label file keeps the DYMO driver name).
+const paperTitle = (p) => p.title || p.name;
 
 // Displayed size of a label (what the user sees in the editor).
 function labelSize(doc) {
