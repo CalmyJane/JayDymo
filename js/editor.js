@@ -42,12 +42,13 @@ const Editor = (() => {
     svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     svg.setAttribute('width', w * z); svg.setAttribute('height', h * z);
     $('#canvasDefs').innerHTML = Render.MONO_FILTER;
-    const r = Math.min(3, w / 10, h / 10), a = printableArea(E.doc);
-    // label, hatched non-printable border, dashed printable-area line
-    labelLayer.innerHTML = `<pattern id="noprint" width="1.2" height="1.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.2" height="1.2" fill="#f1f2f4"/><line x1="0" y1="0" x2="0" y2="1.2" stroke="#d5d9df" stroke-width="0.5"/></pattern>` +
+    const r = Math.min(3, w / 10, h / 10), a = printableArea(E.doc), d = designArea(E.doc);
+    // label, hatched non-printable border, faded extra strip, dashed (symmetric) design area
+    labelLayer.innerHTML = `<pattern id="noprint" width="1.2" height="1.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.2" height="1.2" fill="#eceef1"/><line x1="0" y1="0" x2="0" y2="1.2" stroke="#cfd4db" stroke-width="0.5"/></pattern>` +
       `<rect class="label" width="${w}" height="${h}" rx="${r}" fill="#fff"/>` +
       `<path d="M0 0H${w}V${h}H0Z M${a.x} ${a.y}V${a.y + a.h}H${a.x + a.w}V${a.y}Z" fill="url(#noprint)" fill-rule="evenodd" clip-path="inset(0 round ${r})" pointer-events="none"/>` +
-      `<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" fill="none" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" pointer-events="none"/>` + extraStrip(a, designArea(E.doc));
+      extraStrip(a, d) +
+      `<rect x="${d.x}" y="${d.y}" width="${d.w}" height="${d.h}" fill="none" stroke="#8a94a3" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
     objLayer.setAttribute('filter', E.mono ? 'url(#mono)' : '');
     // objects (cached by content; position applied via transform)
     const seen = new Set();
@@ -75,16 +76,18 @@ const Editor = (() => {
   E.render = render;
 
   // Marks the printable strip outside the centred design area as optional "extra space".
+  // The printable strip beyond the symmetric design area: shown faded (usable, but lay out on the dashed line).
   function extraStrip(a, d) {
     const land = E.doc.orientation === 'Landscape';
     const r = land ? { x: d.x + d.w, y: a.y, w: a.x + a.w - d.x - d.w, h: a.h } : { x: a.x, y: d.y + d.h, w: a.w, h: a.y + a.h - d.y - d.h };
     if (r.w <= 0 || r.h <= 0) return '';
-    const fs = Math.min(1.8, (land ? r.w : r.h) * 0.45), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-    const line = land ? `M${r.x} ${r.y}V${r.y + r.h}` : `M${r.x} ${r.y}H${r.x + r.w}`;
-    return `<g pointer-events="none"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="rgba(37,99,235,.06)"/>` +
-      `<path d="${line}" stroke="#93b4f5" stroke-width="1" stroke-dasharray="1 3" vector-effect="non-scaling-stroke"/>` +
-      `<text x="${cx}" y="${cy}" font-size="${fs}" fill="#7d9de0" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="central" letter-spacing="0.3"${land ? ` transform="rotate(90 ${cx} ${cy})"` : ''}>EXTRA SPACE</text></g>`;
+    const fs = Math.min(1.5, (land ? r.w : r.h) * 0.4), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    const edge = land ? `M${r.x + r.w} ${r.y}V${r.y + r.h}` : `M${r.x} ${r.y + r.h}H${r.x + r.w}`;
+    return `<g pointer-events="none"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#noprint)" opacity="0.4"/>` +
+      `<path d="${edge}" stroke="#b6bcc6" stroke-width="1" stroke-dasharray="1 3" vector-effect="non-scaling-stroke"/>` +
+      `<text x="${cx}" y="${cy}" font-size="${fs}" fill="#a3aab5" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="central" letter-spacing="0.3"${land ? ` transform="rotate(90 ${cx} ${cy})"` : ''}>EXTRA SPACE</text></g>`;
   }
+
 
   function renderOverlay() {
     const z = E.zoom, hs = 8 / z;
@@ -131,7 +134,7 @@ const Editor = (() => {
     return { x, y, w: Math.max(...objs.map(o => o.x + o.w)) - x, h: Math.max(...objs.map(o => o.y + o.h)) - y };
   }
   function snapTargets() {
-    const { w, h } = size(), a = printableArea(E.doc), d = designArea(E.doc), xs = [0, w / 2, w, a.x, a.x + a.w, d.x + d.w], ys = [0, h / 2, h, a.y, a.y + a.h, d.y + d.h];
+    const { w, h } = size(), a = printableArea(E.doc), d = designArea(E.doc), xs = [0, w / 2, w, d.x, d.x + d.w, a.x + a.w], ys = [0, h / 2, h, d.y, d.y + d.h, a.y + a.h];
     for (const o of E.doc.objects) if (!E.sel.has(o.id)) { xs.push(o.x, o.x + o.w / 2, o.x + o.w); ys.push(o.y, o.y + o.h / 2, o.y + o.h); }
     return { xs, ys };
   }
@@ -408,7 +411,7 @@ const Editor = (() => {
     let s = '<h3>Label</h3>' + row(field.select('Label type', 'paper', { paper: d.paper.id }, PAPERS.map(p => [p.id, paperTitle(p)])));
     s += row(`<label>Orientation${field.seg('orientation', d, [['Landscape', 'Landscape'], ['Portrait', 'Portrait']])}</label>`);
     if (d.paper.id === 'custom') s += row(field.num('Width across roll (mm)', 'pw', { pw: d.paper.w }, 1, 10), field.num('Length (mm)', 'ph', { ph: d.paper.h }, 1, 10));
-    s += `<p class="hint">${round(w, 1)} × ${round(h, 1)} mm. The hatched border can't be printed by the LabelWriter (about 5.8 mm at the start of the label, 1.5 mm elsewhere). The blue strip mirrors it on the other side so designs stay centred; it does print, so use it if you need the room.</p>`;
+    s += `<p class="hint">${round(w, 1)} × ${round(h, 1)} mm. The hatched border can't be printed by the LabelWriter (about 5.8 mm at the start of the label, 1.5 mm elsewhere). The dashed line is the centred design area — lay out against it. The faded strip beyond it still prints, if you need a little extra room.</p>`;
     s += `<h3>Shortcuts</h3><p class="hint">Click to select, Shift+click for more, drag on empty space to box-select. Arrows nudge (Shift = 2 mm). Ctrl+C / V / D / Z / Y, Del. Alt while dragging disables snapping. Double-click text to edit. Drop images or .label/.dymo files on the canvas; paste images with Ctrl+V.</p>`;
     return s;
   }
