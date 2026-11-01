@@ -162,7 +162,7 @@
   let brandDraft = null;
   function cmdBrand() {
     brandDraft = Brand.get();
-    $('#brandSender').value = brandDraft.sender; $('#brandLogo').src = brandDraft.logo;
+    $('#brandSender').value = brandDraft.sender; $('#brandWeb').value = brandDraft.web || ''; $('#brandLogo').src = brandDraft.logo;
     $('#dlgBrand').returnValue = ''; $('#dlgBrand').showModal();
   }
   $('#brandLogoPick').onclick = () => $('#fileLogo').click();
@@ -174,7 +174,7 @@
   $('#dlgBrand').addEventListener('close', () => {
     if ($('#dlgBrand').returnValue !== 'ok') return;
     const old = Brand.get();
-    brandDraft.sender = $('#brandSender').value.trim();
+    brandDraft.sender = $('#brandSender').value.trim(); brandDraft.web = $('#brandWeb').value.trim();
     Brand.set(brandDraft);
     // update logos on the current label that still use the previous brand logo
     let n = 0;

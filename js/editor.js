@@ -47,7 +47,7 @@ const Editor = (() => {
     labelLayer.innerHTML = `<pattern id="noprint" width="1.2" height="1.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.2" height="1.2" fill="#f1f2f4"/><line x1="0" y1="0" x2="0" y2="1.2" stroke="#d5d9df" stroke-width="0.5"/></pattern>` +
       `<rect class="label" width="${w}" height="${h}" rx="${r}" fill="#fff"/>` +
       `<path d="M0 0H${w}V${h}H0Z M${a.x} ${a.y}V${a.y + a.h}H${a.x + a.w}V${a.y}Z" fill="url(#noprint)" fill-rule="evenodd" clip-path="inset(0 round ${r})" pointer-events="none"/>` +
-      `<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" fill="none" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+      `<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" fill="none" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" pointer-events="none"/>` + extraStrip(a, designArea(E.doc));
     objLayer.setAttribute('filter', E.mono ? 'url(#mono)' : '');
     // objects (cached by content; position applied via transform)
     const seen = new Set();
@@ -73,6 +73,18 @@ const Editor = (() => {
     status();
   }
   E.render = render;
+
+  // Marks the printable strip outside the centred design area as optional "extra space".
+  function extraStrip(a, d) {
+    const land = E.doc.orientation === 'Landscape';
+    const r = land ? { x: d.x + d.w, y: a.y, w: a.x + a.w - d.x - d.w, h: a.h } : { x: a.x, y: d.y + d.h, w: a.w, h: a.y + a.h - d.y - d.h };
+    if (r.w <= 0 || r.h <= 0) return '';
+    const fs = Math.min(1.8, (land ? r.w : r.h) * 0.45), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    const line = land ? `M${r.x} ${r.y}V${r.y + r.h}` : `M${r.x} ${r.y}H${r.x + r.w}`;
+    return `<g pointer-events="none"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="rgba(37,99,235,.06)"/>` +
+      `<path d="${line}" stroke="#93b4f5" stroke-width="1" stroke-dasharray="1 3" vector-effect="non-scaling-stroke"/>` +
+      `<text x="${cx}" y="${cy}" font-size="${fs}" fill="#7d9de0" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="central" letter-spacing="0.3"${land ? ` transform="rotate(90 ${cx} ${cy})"` : ''}>EXTRA SPACE</text></g>`;
+  }
 
   function renderOverlay() {
     const z = E.zoom, hs = 8 / z;
@@ -119,7 +131,7 @@ const Editor = (() => {
     return { x, y, w: Math.max(...objs.map(o => o.x + o.w)) - x, h: Math.max(...objs.map(o => o.y + o.h)) - y };
   }
   function snapTargets() {
-    const { w, h } = size(), a = printableArea(E.doc), xs = [0, w / 2, w, a.x, a.x + a.w, a.x + a.w / 2], ys = [0, h / 2, h, a.y, a.y + a.h, a.y + a.h / 2];
+    const { w, h } = size(), a = printableArea(E.doc), d = designArea(E.doc), xs = [0, w / 2, w, a.x, a.x + a.w, d.x + d.w], ys = [0, h / 2, h, a.y, a.y + a.h, d.y + d.h];
     for (const o of E.doc.objects) if (!E.sel.has(o.id)) { xs.push(o.x, o.x + o.w / 2, o.x + o.w); ys.push(o.y, o.y + o.h / 2, o.y + o.h); }
     return { xs, ys };
   }
@@ -396,7 +408,7 @@ const Editor = (() => {
     let s = '<h3>Label</h3>' + row(field.select('Label type', 'paper', { paper: d.paper.id }, PAPERS.map(p => [p.id, paperTitle(p)])));
     s += row(`<label>Orientation${field.seg('orientation', d, [['Landscape', 'Landscape'], ['Portrait', 'Portrait']])}</label>`);
     if (d.paper.id === 'custom') s += row(field.num('Width across roll (mm)', 'pw', { pw: d.paper.w }, 1, 10), field.num('Length (mm)', 'ph', { ph: d.paper.h }, 1, 10));
-    s += `<p class="hint">${round(w, 1)} × ${round(h, 1)} mm. The hatched border can't be printed by the LabelWriter (about 5.8 mm at the start of the label, 1.5 mm elsewhere) — keep content inside the dashed line.</p>`;
+    s += `<p class="hint">${round(w, 1)} × ${round(h, 1)} mm. The hatched border can't be printed by the LabelWriter (about 5.8 mm at the start of the label, 1.5 mm elsewhere). The blue strip mirrors it on the other side so designs stay centred; it does print, so use it if you need the room.</p>`;
     s += `<h3>Shortcuts</h3><p class="hint">Click to select, Shift+click for more, drag on empty space to box-select. Arrows nudge (Shift = 2 mm). Ctrl+C / V / D / Z / Y, Del. Alt while dragging disables snapping. Double-click text to edit. Drop images or .label/.dymo files on the canvas; paste images with Ctrl+V.</p>`;
     return s;
   }

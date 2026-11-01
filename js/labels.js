@@ -66,3 +66,11 @@ function outsidePrintable(doc) {
   const a = printableArea(doc), t = 0.2;
   return doc.objects.filter(o => o.x < a.x - t || o.y < a.y - t || o.x + o.w > a.x + a.w + t || o.y + o.h > a.y + a.h + t);
 }
+// Centred design area: the unprintable lead strip mirrored on the opposite edge.
+// The strip between this area and the printable area can still be used ("extra space").
+function designArea(doc) {
+  const { w, h } = labelSize(doc);
+  return doc.orientation === 'Landscape'
+    ? { x: LEAD_MARGIN, y: EDGE_MARGIN, w: w - 2 * LEAD_MARGIN, h: h - 2 * EDGE_MARGIN }
+    : { x: EDGE_MARGIN, y: LEAD_MARGIN, w: w - 2 * EDGE_MARGIN, h: h - 2 * LEAD_MARGIN };
+}
