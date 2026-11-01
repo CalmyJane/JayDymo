@@ -16,12 +16,12 @@
   // ---------- autosave ----------
   E.onCommit = (doc) => {
     syncTop();
-    try { localStorage.setItem('jaydymo.doc', JSON.stringify({ doc, file: { name: file.name, format: file.format } })); } catch { /* quota: ignore */ }
+    try { localStorage.setItem('jaydymo.doc', JSON.stringify({ doc, tv: TEMPLATE_VERSION, file: { name: file.name, format: file.format } })); } catch { /* quota: ignore */ }
   };
   function syncTop() {
     $('#paperSelect').value = E.doc.paper.id;
     $('#orientBtn').textContent = E.doc.orientation;
-    document.title = `${file.name} – JayDymo`;
+    document.title = `${file.name} – JayDymo ${APP_VERSION}`;
   }
 
   // ---------- files ----------
@@ -292,8 +292,12 @@
   // ---------- start ----------
   let start = null;
   try { start = JSON.parse(localStorage.getItem('jaydymo.doc') || 'null'); } catch { }
-  if (start && start.doc && Array.isArray(start.doc.objects)) { Object.assign(file, start.file || {}); E.setDoc(start.doc); }
-  else { E.setDoc(TEMPLATES[1].build(Brand.get())); file.name = 'shipping'; }
+  if (start && start.doc && Array.isArray(start.doc.objects) && start.tv === TEMPLATE_VERSION) { Object.assign(file, start.file || {}); E.setDoc(start.doc); }
+  else {
+    // first start, or the templates were updated: begin with the current default design
+    E.setDoc(TEMPLATES[1].build(Brand.get())); file.name = 'shipping'; E.onCommit(E.doc);
+    if (start) setTimeout(() => toast(`JayDymo ${APP_VERSION}: started with the updated label design.`), 300);
+  }
   syncTop();
   requestAnimationFrame(() => E.fit());
   // Desktop: a .label/.dymo file passed on the command line ("Open with" / double-click).

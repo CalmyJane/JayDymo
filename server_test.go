@@ -42,7 +42,7 @@ func TestFileAPI(t *testing.T) {
 	if b, _ := os.ReadFile(lbl); string(b) != "<new/>" {
 		t.Errorf("content not written: %q", b)
 	}
-	res, _ := http.Get(srv.URL + "/index.html")
+	res, _ := http.Get(srv.URL + "/" + buildID + "/index.html")
 	if res.StatusCode != 200 {
 		t.Errorf("index: %d", res.StatusCode)
 	}

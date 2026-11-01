@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"embed"
 	"encoding/base64"
 	"encoding/hex"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"image/png"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -53,12 +55,18 @@ func startServer(args []string) (string, error) {
 			q.Set("open", p)
 		}
 	}
-	return fmt.Sprintf("http://%s/index.html?%s", ln.Addr(), q.Encode()), nil
+	return fmt.Sprintf("http://%s/%s/index.html?%s", ln.Addr(), buildID, q.Encode()), nil
 }
 
 func handler(token string) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.FS(assets)))
+	// The app is served under a path unique to this build, so the window never shows
+	// files cached from an older version (storage stays shared: same origin).
+	files := http.StripPrefix("/"+buildID, http.FileServer(http.FS(assets)))
+	mux.Handle("/"+buildID+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		files.ServeHTTP(w, r)
+	}))
 	// Read/write a .label/.dymo file on disk (used for "open with" and saving back).
 	mux.HandleFunc("/api/file", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-JayDymo") != token {
@@ -151,3 +159,17 @@ func randomToken() string {
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+// buildID is a short hash of all embedded app files.
+var buildID = func() string {
+	h := sha256.New()
+	fs.WalkDir(assets, ".", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			b, _ := assets.ReadFile(p)
+			h.Write([]byte(p))
+			h.Write(b)
+		}
+		return nil
+	})
+	return fmt.Sprintf("b%x", h.Sum(nil)[:6])
+}()

@@ -7,6 +7,8 @@ const DEFAULT_LOGO = svgDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox
 </svg>`);
 const LOGO_RATIO = 150 / 126;
 const LOGO_VERSION = 3;
+// Bump when the templates change: the app then starts with the new default label once.
+const TEMPLATE_VERSION = 3;
 
 // Small pixel-art heart matching the logo style.
 const pixelHeart = (color = '#000') => svgDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 6" width="140" height="120" shape-rendering="crispEdges">

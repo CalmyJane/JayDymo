@@ -113,6 +113,7 @@ const Editor = (() => {
     if (sel.length === 1) { const o = sel[0]; s += ` — ${o.name}: X ${round(o.x, 1)} Y ${round(o.y, 1)} W ${round(o.w, 1)} H ${round(o.h, 1)} mm`; }
     else if (sel.length > 1) s += ` — ${sel.length} objects selected`;
     if (pt) s += ` · cursor ${round(pt.x, 1)}, ${round(pt.y, 1)}`;
+    s += ` · JayDymo ${APP_VERSION}`;
     $('#status').textContent = s;
   }
 
