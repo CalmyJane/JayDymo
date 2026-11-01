@@ -57,14 +57,14 @@ const DymoConnect = (() => {
         text: lines.join('\n'), font: X.txt(fi, 'FontName', 'Arial'), size: X.num(fi, 'FontSize', 12),
         bold: X.bool(X.txt(fi, 'IsBold')), italic: X.bool(X.txt(fi, 'IsItalic')), underline: X.bool(X.txt(fi, 'IsUnderline')),
         color: brushColor(X.kid(fi, 'FontBrush')).hex,
-        align: X.mapAlign(X.txt(el, 'HorizontalAlignment'), 'left'), valign: X.mapAlign(X.txt(el, 'VerticalAlignment'), 'middle'),
+        align: X.mapAlign(X.txt(el, 'HorizontalAlignment'), 'left'), valign: X.mapVAlign(X.txt(el, 'VerticalAlignment'), 'middle'),
         fit: /AlwaysFit/i.test(fit) ? 'always' : /Shrink/i.test(fit) ? 'shrink' : 'none', name: base.name || 'Text' }));
     }
     if (type === 'ImageObject') {
       const b64 = X.txt(el, 'Data').replace(/\s+/g, ''), svg = X.readSvgComment(el), sm = X.txt(el, 'ScaleMode', 'Uniform');
       return makeObject('image', Object.assign(base, { src: svg || (b64 ? `data:${X.imageMime(b64)};base64,${b64}` : ''),
         fit: /Fill/i.test(sm) ? 'stretch' : 'contain', halign: X.mapAlign(X.txt(el, 'HorizontalAlignment'), 'center'),
-        valign: X.mapAlign(X.txt(el, 'VerticalAlignment'), 'middle'), name: base.name || 'Image' }));
+        valign: X.mapVAlign(X.txt(el, 'VerticalAlignment'), 'middle'), name: base.name || 'Image' }));
     }
     if (type === 'ShapeObject') {
       const st = X.txt(el, 'ShapeType', 'Rectangle');

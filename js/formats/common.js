@@ -36,5 +36,7 @@ const X = {
     return null;
   },
   ser: (el) => new XMLSerializer().serializeToString(el).replace(/ xmlns(:\w+)?="[^"]*"/g, ''),
+  // vertical alignment: DYMO uses Top / Middle or Center / Bottom
+  mapVAlign: (v, def) => ({ top: 'top', middle: 'middle', center: 'middle', centre: 'middle', bottom: 'bottom' })[String(v || '').toLowerCase()] || def,
   mapAlign: (v, def) => ({ left: 'left', center: 'center', centre: 'center', right: 'right', top: 'top', middle: 'middle', center_v: 'middle', bottom: 'bottom' })[String(v || '').toLowerCase()] || def,
 };

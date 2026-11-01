@@ -48,7 +48,7 @@ const DymoLabel = (() => {
         text: text.replace(/\r\n?/g, '\n').replace(/\n$/, ''),
         font: font?.getAttribute('Family') || 'Arial', size: parseFloat(font?.getAttribute('Size') || 12),
         bold: X.bool(font?.getAttribute('Bold')), italic: X.bool(font?.getAttribute('Italic')), underline: X.bool(font?.getAttribute('Underline')),
-        color: color(fg).hex, align: X.mapAlign(X.txt(el, 'HorizontalAlignment'), 'left'), valign: X.mapAlign(X.txt(el, 'VerticalAlignment'), 'middle'),
+        color: color(fg).hex, align: X.mapAlign(X.txt(el, 'HorizontalAlignment'), 'left'), valign: X.mapVAlign(X.txt(el, 'VerticalAlignment'), 'middle'),
         fit: fit === 'AlwaysFit' ? 'always' : fit === 'None' ? 'none' : 'shrink', name: base.name || 'Text' }));
     }
     if (type === 'ImageObject') {
@@ -57,7 +57,7 @@ const DymoLabel = (() => {
       const sm = X.txt(el, 'ScaleMode', 'Uniform');
       return makeObject('image', Object.assign(base, { src: svg || (b64 ? `data:${X.imageMime(b64)};base64,${b64}` : ''),
         fit: sm === 'Fill' ? 'stretch' : 'contain', halign: X.mapAlign(X.txt(el, 'HorizontalAlignment'), 'center'),
-        valign: X.mapAlign(X.txt(el, 'VerticalAlignment'), 'middle'), name: base.name || 'Image' }));
+        valign: X.mapVAlign(X.txt(el, 'VerticalAlignment'), 'middle'), name: base.name || 'Image' }));
     }
     if (type === 'ShapeObject') {
       const st = X.txt(el, 'ShapeType', 'Rectangle'), fill = color(X.kid(el, 'FillColor'));
