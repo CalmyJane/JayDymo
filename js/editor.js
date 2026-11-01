@@ -81,11 +81,10 @@ const Editor = (() => {
     const land = E.doc.orientation === 'Landscape';
     const r = land ? { x: d.x + d.w, y: a.y, w: a.x + a.w - d.x - d.w, h: a.h } : { x: a.x, y: d.y + d.h, w: a.w, h: a.y + a.h - d.y - d.h };
     if (r.w <= 0 || r.h <= 0) return '';
-    const fs = Math.min(1.5, (land ? r.w : r.h) * 0.4), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     const edge = land ? `M${r.x + r.w} ${r.y}V${r.y + r.h}` : `M${r.x} ${r.y + r.h}H${r.x + r.w}`;
     return `<g pointer-events="none"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#noprint)" opacity="0.4"/>` +
       `<path d="${edge}" stroke="#b6bcc6" stroke-width="1" stroke-dasharray="1 3" vector-effect="non-scaling-stroke"/>` +
-      `<text x="${cx}" y="${cy}" font-size="${fs}" fill="#a3aab5" font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="central" letter-spacing="0.3"${land ? ` transform="rotate(90 ${cx} ${cy})"` : ''}>EXTRA SPACE</text></g>`;
+      '</g>';
   }
 
 
