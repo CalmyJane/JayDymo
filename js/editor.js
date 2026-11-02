@@ -303,24 +303,45 @@ const Editor = (() => {
     }
     E.commit(); render(true);
   };
+  // Changes label type and/or orientation.
+  // Template labels are laid out again; other designs are turned (orientation) and
+  // moved proportionally (size) without distorting any object.
   E.setPaper = (id, orientation = E.doc.orientation) => {
-    const old = size(), p = findPaper(id) || PAPERS[0];
-    if (p.custom) E.doc.paper = { id: 'custom', name: 'Custom', w: E.doc.paper.w, h: E.doc.paper.h };
-    else E.doc.paper = { id: p.id, name: p.name, w: p.w, h: p.h };
-    E.doc.orientation = orientation;
-    const nw = size();
-    // keep objects inside: scale positions proportionally when size changes
-    if (Math.abs(old.w - nw.w) > 0.5 || Math.abs(old.h - nw.h) > 0.5) {
-      const f = Math.min(nw.w / old.w, nw.h / old.h, 1);
-      for (const o of E.doc.objects) {
-        o.x *= nw.w / old.w; o.y *= nw.h / old.h;
-        if (f < 1) { o.w *= f; o.h *= f; }
-        o.x = round(Math.max(0, Math.min(o.x, nw.w - o.w)), 3); o.y = round(Math.max(0, Math.min(o.y, nw.h - o.h)), 3);
-        o.w = round(o.w, 3); o.h = round(o.h, 3);
+    const p = findPaper(id) || PAPERS[0], old = size(), turned = orientation !== E.doc.orientation;
+    const paper = p.custom ? { id: 'custom', name: 'Custom', w: E.doc.paper.w, h: E.doc.paper.h } : { id: p.id, name: p.name, w: p.w, h: p.h };
+    const re = relayout(E.doc, paper, orientation);
+    if (re) {
+      E.doc = re;
+    } else {
+      if (turned) {
+        // rotate the whole design by 90° so it stays exactly as designed
+        for (const o of E.doc.objects) {
+          const { x, y, w, h } = o;
+          if (orientation === 'Portrait') { o.x = old.h - (y + h); o.y = x; o.rotation = ((o.rotation || 0) + 90) % 360; }
+          else { o.x = y; o.y = old.w - (x + w); o.rotation = ((o.rotation || 0) + 270) % 360; }
+          o.w = h; o.h = w;
+        }
+      }
+      const from = turned ? { w: old.h, h: old.w } : old;
+      E.doc.paper = paper; E.doc.orientation = orientation;
+      const to = size();
+      if (Math.abs(from.w - to.w) > 0.1 || Math.abs(from.h - to.h) > 0.1) {
+        const f = Math.min(to.w / from.w, to.h / from.h, 1); // shrink uniformly if the label got smaller
+        for (const o of E.doc.objects) {
+          const cx = (o.x + o.w / 2) * to.w / from.w, cy = (o.y + o.h / 2) * to.h / from.h;
+          o.w *= f; o.h *= f; o.x = cx - o.w / 2; o.y = cy - o.h / 2;
+        }
       }
     }
+    const to = size();
+    for (const o of E.doc.objects) {
+      o.x = round(Math.max(0, Math.min(o.x, to.w - o.w)), 3); o.y = round(Math.max(0, Math.min(o.y, to.h - o.h)), 3);
+      o.w = round(o.w, 3); o.h = round(o.h, 3);
+    }
+    E.sel.clear(); cache.clear(); objLayer.innerHTML = '';
     E.commit(); E.fit(); render(true);
   };
+
 
   // ---------- layers ----------
   function renderLayers() {

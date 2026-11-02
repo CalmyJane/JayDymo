@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 // Document model, defaults and small helpers.
 
 let _idSeq = 1;
@@ -22,8 +22,9 @@ function makeObject(type, props = {}) {
   return o;
 }
 
-function newDoc(paperId = '99014', orientation = 'Landscape') {
-  const p = findPaper(paperId) || PAPERS[0];
+// paper: a preset id, or a paper object { id, name, w, h } (e.g. a custom size)
+function newDoc(paper = '99014', orientation = 'Landscape') {
+  const p = typeof paper === 'object' ? paper : (findPaper(paper) || PAPERS[0]);
   return { paper: { id: p.id, name: p.name, w: p.w, h: p.h }, orientation, objects: [] };
 }
 
