@@ -20,6 +20,13 @@ Install Go 1.22 or newer, then run `./build.sh`. The result is `dist/JayDymo.exe
 It cross‑compiles from Windows, macOS or Linux, with no C compiler or other tools needed.
 Every push also builds it with GitHub Actions; download it from the run's *Artifacts*.
 
+### Release a version
+
+1. Set `APP_VERSION` in `js/model.js` (e.g. `'1.9'`) and commit.
+2. Push a matching tag, e.g. `git tag v1.9 && git push origin v1.9`.
+
+GitHub Actions then builds the exe and publishes it as a release on the repository's *Releases* page.
+
 ## Features
 
 - **Editor:** text, images (PNG/JPG/SVG), built‑in vector icons, rectangles, ellipses, lines, Code 128 barcodes and QR codes.

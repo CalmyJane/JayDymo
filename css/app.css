@@ -95,3 +95,4 @@ body.desktop .webOnly { display: none; }
 #paperSelect { max-width: 240px; }
 .warn { background: #fff4e5; color: #8a4b00; border-radius: 6px; padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .warn[hidden] { display: none; }
+.inlineEdit { position: fixed; z-index: 20; margin: 0; border: 0; outline: 1.5px solid var(--accent); border-radius: 0; padding: 0; background: rgba(255,255,255,.96); resize: none; overflow: hidden; white-space: pre; color: #000; box-sizing: border-box; }

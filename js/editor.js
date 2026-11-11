@@ -19,6 +19,7 @@ const Editor = (() => {
 
   // ---------- document lifecycle ----------
   E.setDoc = (doc, resetHistory = true) => {
+    if (editing) { editing.ta.remove(); editing = null; }
     E.doc = doc; E.sel.clear(); cache.clear(); objLayer.innerHTML = '';
     if (resetHistory) { E.history = new History(); E.history.push(doc); }
     E.fit(); render(true);
@@ -33,6 +34,7 @@ const Editor = (() => {
   E.undo = () => { const d = E.history.undo(); if (d) restore(d); };
   E.redo = () => { const d = E.history.redo(); if (d) restore(d); };
   function restore(d) {
+    if (editing) { editing.ta.remove(); editing = null; }
     E.doc = d; E.sel = new Set([...E.sel].filter(byId)); render(true); E.onCommit(E.doc);
   }
 
@@ -64,10 +66,12 @@ const Editor = (() => {
         c = { key, el }; cache.set(o.id, c);
       }
       c.el.setAttribute('transform', `translate(${o.x} ${o.y})`);
+      c.el.style.opacity = editing && editing.o.id === o.id ? 0 : '';
       if (objLayer.children[i] !== c.el) objLayer.insertBefore(c.el, objLayer.children[i] || null);
     });
     for (const [id, c] of cache) if (!seen.has(id)) { c.el.remove(); cache.delete(id); }
     renderOverlay();
+    if (editing) placeEditor();
     renderLayers();
     renderProps(forceProps);
     $('#zoomLabel').textContent = Math.round(E.zoom / 3.78 * 100) + '%';
@@ -152,11 +156,16 @@ const Editor = (() => {
   }
 
   // ---------- pointer interaction ----------
-  let drag = null, marquee = null;
+  let drag = null, marquee = null, lastDownId = null;
   svg.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0) return;
+    finishTextEdit();
+    // keyboard shortcuts (Ctrl+A, Delete, arrows) should act on the canvas, not a panel field
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) ae.blur();
     const pt = toMm(ev), handle = ev.target.dataset?.handle;
     const g = ev.target.closest('[data-id]');
+    lastDownId = g ? g.dataset.id : null;
     svg.setPointerCapture(ev.pointerId);
     if (handle) {
       const o = selected()[0];
@@ -168,7 +177,8 @@ const Editor = (() => {
       if (ev.shiftKey || ev.ctrlKey || ev.metaKey) { E.sel.has(id) ? E.sel.delete(id) : E.sel.add(id); }
       else if (!E.sel.has(id)) { E.sel.clear(); E.sel.add(id); }
       const objs = selected().filter(o => !o.locked);
-      drag = { mode: 'move', start: pt, orig: objs.map(o => ({ o, x: o.x, y: o.y })), moved: false };
+      const modifier = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+      drag = { mode: 'move', start: pt, orig: objs.map(o => ({ o, x: o.x, y: o.y })), moved: false, clickId: modifier ? null : id };
       render();
       return;
     }
@@ -224,19 +234,67 @@ const Editor = (() => {
 
   const endDrag = () => {
     const changed = drag && (drag.mode === 'resize' || drag.moved);
+    if (drag && drag.mode === 'move' && !drag.moved && drag.clickId && E.sel.size > 1) { E.sel = new Set([drag.clickId]); propsKey = ''; }
     drag = null; marquee = null; guides = [];
     if (changed) E.commit(); else render();
   };
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
-  svg.addEventListener('dblclick', (ev) => {
-    const g = ev.target.closest('[data-id]'); if (!g) return;
-    const o = byId(g.dataset.id);
+  svg.addEventListener('dblclick', () => {
+    // pointer capture makes the canvas the event target, so use the object the press landed on
+    const o = lastDownId && byId(lastDownId); if (!o) return;
+    E.sel = new Set([o.id]); render(true);
+    if (o.type === 'text' && !o.locked && !(o.rotation % 360)) return startTextEdit(o);
     const f = $('#props [data-key="' + (o.type === 'barcode' ? 'data' : 'text') + '"]');
     if (f) { f.focus(); f.select(); }
   });
+
+  // ---------- in-place text editing ----------
+  let editing = null; // { o, ta }
+  function placeEditor() {
+    if (!editing) return;
+    const { o, ta } = editing, z = E.zoom, r = svg.getBoundingClientRect();
+    const L = Render.layoutText(o, o.w, o.h);
+    const lh = L.lines.length > 1 ? (L.lines[1].y - L.lines[0].y) : L.size * 1.17;
+    const top = Math.max(0, L.lines[0].y - L.size * 0.92);
+    Object.assign(ta.style, {
+      left: r.left + o.x * z + 'px', top: r.top + o.y * z + 'px', width: o.w * z + 'px', height: o.h * z + 'px',
+      fontFamily: `"${o.font}", sans-serif`, fontSize: L.size * z + 'px', lineHeight: lh * z + 'px',
+      fontWeight: o.bold ? 700 : 400, fontStyle: o.italic ? 'italic' : 'normal', textDecoration: o.underline ? 'underline' : 'none',
+      textAlign: o.align, paddingTop: top * z + 'px', color: o.color === '#ffffff' ? '#000' : o.color,
+    });
+  }
+  function startTextEdit(o) {
+    finishTextEdit();
+    const ta = document.createElement('textarea');
+    ta.className = 'inlineEdit'; ta.value = o.text; ta.spellcheck = false;
+    document.body.appendChild(ta);
+    editing = { o, ta };
+    placeEditor(); render();
+    ta.focus(); ta.select();
+    ta.addEventListener('input', () => { o.text = ta.value; E.commit(false); placeEditor(); });
+    ta.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' || (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey))) { ev.preventDefault(); finishTextEdit(); }
+      ev.stopPropagation(); // typing never triggers editor shortcuts
+    });
+    ta.addEventListener('blur', () => setTimeout(finishTextEdit, 0));
+  }
+  function finishTextEdit() {
+    if (!editing) return;
+    const { ta } = editing; editing = null;
+    ta.remove(); E.commit(); render(true);
+  }
+  E.finishTextEdit = finishTextEdit;
+  window.addEventListener('resize', placeEditor);
+  $('#stage').addEventListener('scroll', placeEditor);
   // clicking the grey stage around the label clears the selection
-  $('#stage').addEventListener('pointerdown', (ev) => { if (!svg.contains(ev.target) && E.sel.size) { E.sel.clear(); render(); } });
+  $('#stage').addEventListener('pointerdown', (ev) => {
+    if (svg.contains(ev.target)) return;
+    finishTextEdit();
+    const ae = document.activeElement;
+    if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) ae.blur();
+    if (E.sel.size) { E.sel.clear(); render(true); }
+  });
   $('#stage').addEventListener('wheel', (ev) => { if (ev.ctrlKey || ev.metaKey) { ev.preventDefault(); E.zoomBy(ev.deltaY < 0 ? 1.1 : 1 / 1.1); } }, { passive: false });
 
   // ---------- object operations ----------

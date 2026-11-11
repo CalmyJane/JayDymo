@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 // Document model, defaults and small helpers.
 
 let _idSeq = 1;
