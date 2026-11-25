@@ -32,6 +32,7 @@ GitHub Actions then builds the exe and publishes it as a release on the reposito
 - **Editor:** text, images (PNG/JPG/SVG), built‑in vector icons, rectangles, ellipses, lines, Code 128 barcodes and QR codes.
 - Move and resize with the mouse, snap to the label edges, centre and other objects, use arrow keys to nudge, and rotate in 90° steps.
 - Align, change the stacking order, duplicate, copy/paste, undo/redo, and lock objects.
+- Text is edited right on the label: click a selected text to put the cursor there, double‑click to select a word, or press Enter/F2 to select all. New text opens ready to type. Esc or a click outside finishes. Works for rotated text too.
 - Text: font, size, bold/italic/underline, alignment and line spacing. Three fit modes: *shrink to fit*, *always fit* and *fixed*. Text can be printed white on a black box.
 - **B/W toggle:** shows how the thermal head will print the label.
 - **DYMO compatible:**
@@ -61,7 +62,9 @@ GitHub Actions then builds the exe and publishes it as a release on the reposito
 | Arrows (Shift) | Nudge 0.5 mm (2 mm) |
 | Shift+drag | Constrain move / keep aspect ratio |
 | Alt+drag | Disable snapping |
-| T | New text |
+| T | New text (ready to type) |
+| Enter / F2 | Edit the selected text on the label |
+| Esc / Ctrl+Enter | Finish editing text |
 | Ctrl+wheel | Zoom |
 
 You can also drop images or `.label`/`.dymo` files onto the canvas, or paste images from the clipboard.

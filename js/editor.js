@@ -67,6 +67,7 @@ const Editor = (() => {
       }
       c.el.setAttribute('transform', `translate(${o.x} ${o.y})`);
       c.el.style.opacity = editing && editing.o.id === o.id ? 0 : '';
+      c.el.style.cursor = E.sel.size === 1 && E.sel.has(o.id) && editable(o) ? 'text' : '';
       if (objLayer.children[i] !== c.el) objLayer.insertBefore(c.el, objLayer.children[i] || null);
     });
     for (const [id, c] of cache) if (!seen.has(id)) { c.el.remove(); cache.delete(id); }
@@ -173,12 +174,12 @@ const Editor = (() => {
       return;
     }
     if (g) {
-      const id = g.dataset.id;
+      const id = g.dataset.id, wasOnly = E.sel.size === 1 && E.sel.has(id);
       if (ev.shiftKey || ev.ctrlKey || ev.metaKey) { E.sel.has(id) ? E.sel.delete(id) : E.sel.add(id); }
       else if (!E.sel.has(id)) { E.sel.clear(); E.sel.add(id); }
       const objs = selected().filter(o => !o.locked);
       const modifier = ev.shiftKey || ev.ctrlKey || ev.metaKey;
-      drag = { mode: 'move', start: pt, orig: objs.map(o => ({ o, x: o.x, y: o.y })), moved: false, clickId: modifier ? null : id };
+      drag = { mode: 'move', start: pt, orig: objs.map(o => ({ o, x: o.x, y: o.y })), moved: false, clickId: modifier ? null : id, editOnClick: wasOnly && !modifier, pt };
       render();
       return;
     }
@@ -234,50 +235,82 @@ const Editor = (() => {
 
   const endDrag = () => {
     const changed = drag && (drag.mode === 'resize' || drag.moved);
+    // a plain click on a text object that was already selected starts editing at the click point
+    const editClick = drag && drag.mode === 'move' && !drag.moved && drag.editOnClick && editable(byId(drag.clickId));
     if (drag && drag.mode === 'move' && !drag.moved && drag.clickId && E.sel.size > 1) { E.sel = new Set([drag.clickId]); propsKey = ''; }
+    const d = drag;
     drag = null; marquee = null; guides = [];
     if (changed) E.commit(); else render();
+    if (editClick) { const o = byId(d.clickId), i = indexAt(o, d.pt); startTextEdit(o, i, i); }
   };
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
-  svg.addEventListener('dblclick', () => {
+  svg.addEventListener('dblclick', (ev) => {
     // pointer capture makes the canvas the event target, so use the object the press landed on
     const o = lastDownId && byId(lastDownId); if (!o) return;
+    if (editable(o)) {
+      // select the word under the pointer
+      const i = indexAt(o, toMm(ev)), t = o.text;
+      let a = i, b = i;
+      while (a > 0 && /[\p{L}\p{N}_]/u.test(t[a - 1])) a--;
+      while (b < t.length && /[\p{L}\p{N}_]/u.test(t[b])) b++;
+      if (a === b) { a = 0; b = t.length; }
+      if (editing && editing.o === o) { editing.ta.setSelectionRange(a, b); return; }
+      E.sel = new Set([o.id]); render(true);
+      return startTextEdit(o, a, b);
+    }
     E.sel = new Set([o.id]); render(true);
-    if (o.type === 'text' && !o.locked && !(o.rotation % 360)) return startTextEdit(o);
     const f = $('#props [data-key="' + (o.type === 'barcode' ? 'data' : 'text') + '"]');
     if (f) { f.focus(); f.select(); }
   });
 
   // ---------- in-place text editing ----------
   let editing = null; // { o, ta }
+  const editable = (o) => o && o.type === 'text' && !o.locked;
+  // Text offset under a label point (mm), accounting for the object's rotation.
+  function indexAt(o, pt) {
+    const { cw, ch, r } = Render.contentBox(o), a = r * Math.PI / 180;
+    const dx = pt.x - (o.x + o.w / 2), dy = pt.y - (o.y + o.h / 2);
+    return Render.textIndexAt(o, cw, ch, Math.cos(a) * dx + Math.sin(a) * dy + cw / 2, -Math.sin(a) * dx + Math.cos(a) * dy + ch / 2);
+  }
   function placeEditor() {
     if (!editing) return;
     const { o, ta } = editing, z = E.zoom, r = svg.getBoundingClientRect();
-    const L = Render.layoutText(o, o.w, o.h);
-    const lh = L.lines.length > 1 ? (L.lines[1].y - L.lines[0].y) : L.size * 1.17;
-    const top = Math.max(0, L.lines[0].y - L.size * 0.92);
+    const { cw, ch, r: rot } = Render.contentBox(o);
+    const L = Render.layoutText(o, cw, ch);
+    // CSS centres each line's glyph box in its line height (half-leading); SVG puts the baseline at top + ascent
+    const top = L.lines[0].y - L.asc - (L.step - L.step / (o.lineSpacing || 1)) / 2;
+    const cx = r.left + (o.x + o.w / 2) * z, cy = r.top + (o.y + o.h / 2) * z;
+    // if the first line starts above the box (large line spacing), shift the editor up and make it taller
+    const up = Math.min(0, top) * z;
     Object.assign(ta.style, {
-      left: r.left + o.x * z + 'px', top: r.top + o.y * z + 'px', width: o.w * z + 'px', height: o.h * z + 'px',
-      fontFamily: `"${o.font}", sans-serif`, fontSize: L.size * z + 'px', lineHeight: lh * z + 'px',
+      left: cx - cw * z / 2 + 'px', top: cy - ch * z / 2 + 'px', width: cw * z + 'px', height: ch * z - up + 'px',
+      transformOrigin: `${cw * z / 2}px ${ch * z / 2}px`, transform: `rotate(${rot}deg) translateY(${up}px)`,
+      fontFamily: `"${o.font}", sans-serif`, fontSize: L.size * z + 'px', lineHeight: L.step * z + 'px',
       fontWeight: o.bold ? 700 : 400, fontStyle: o.italic ? 'italic' : 'normal', textDecoration: o.underline ? 'underline' : 'none',
-      textAlign: o.align, paddingTop: top * z + 'px', color: o.color === '#ffffff' ? '#000' : o.color,
+      textAlign: o.align, paddingTop: Math.max(0, top) * z + 'px', color: o.color === '#ffffff' ? '#000' : o.color,
     });
   }
-  function startTextEdit(o) {
+  // Opens the on-canvas editor; selStart/selEnd set the caret (default: select all).
+  function startTextEdit(o, selStart = 0, selEnd = o.text.length) {
     finishTextEdit();
     const ta = document.createElement('textarea');
     ta.className = 'inlineEdit'; ta.value = o.text; ta.spellcheck = false;
     document.body.appendChild(ta);
     editing = { o, ta };
-    placeEditor(); render();
-    ta.focus(); ta.select();
+    E.sel = new Set([o.id]);
+    placeEditor(); render(true);
+    ta.focus(); ta.setSelectionRange(selStart, selEnd);
     ta.addEventListener('input', () => { o.text = ta.value; E.commit(false); placeEditor(); });
     ta.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' || (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey))) { ev.preventDefault(); finishTextEdit(); }
+      else if ((ev.ctrlKey || ev.metaKey) && /^[zy]$/i.test(ev.key)) {
+        // undo/redo inside the box: leave editing, then undo the document
+        ev.preventDefault(); finishTextEdit(); ev.key.toLowerCase() === 'y' || ev.shiftKey ? E.redo() : E.undo();
+      }
       ev.stopPropagation(); // typing never triggers editor shortcuts
     });
-    ta.addEventListener('blur', () => setTimeout(finishTextEdit, 0));
+    ta.addEventListener('blur', () => setTimeout(() => { if (editing && editing.ta === ta) finishTextEdit(); }, 0));
   }
   function finishTextEdit() {
     if (!editing) return;
@@ -285,6 +318,8 @@ const Editor = (() => {
     ta.remove(); E.commit(); render(true);
   }
   E.finishTextEdit = finishTextEdit;
+  E.editText = (o = selected()[0], all = true) => { if (editable(o)) startTextEdit(o, all ? 0 : o.text.length, o.text.length); };
+  E.isEditingText = () => !!editing;
   window.addEventListener('resize', placeEditor);
   $('#stage').addEventListener('scroll', placeEditor);
   // clicking the grey stage around the label clears the selection
@@ -491,7 +526,7 @@ const Editor = (() => {
     s += row(`<label>Orientation${field.seg('orientation', d, [['Landscape', 'Landscape'], ['Portrait', 'Portrait']])}</label>`);
     if (d.paper.id === 'custom') s += row(field.num('Width across roll (mm)', 'pw', { pw: d.paper.w }, 1, 10), field.num('Length (mm)', 'ph', { ph: d.paper.h }, 1, 10));
     s += `<p class="hint">${round(w, 1)} × ${round(h, 1)} mm. The hatched border can't be printed by the LabelWriter (about 5.8 mm at the start of the label, 1.5 mm elsewhere). The dashed line is the centred design area — lay out against it. The faded strip beyond it still prints, if you need a little extra room.</p>`;
-    s += `<h3>Shortcuts</h3><p class="hint">Click to select, Shift+click for more, drag on empty space to box-select. Arrows nudge (Shift = 2 mm). Ctrl+C / V / D / Z / Y, Del. Alt while dragging disables snapping. Double-click text to edit. Drop images or .label/.dymo files on the canvas; paste images with Ctrl+V.</p>`;
+    s += `<h3>Shortcuts</h3><p class="hint">Click to select, Shift+click for more, drag on empty space to box-select. Arrows nudge (Shift = 2 mm). Ctrl+C / V / D / Z / Y, Del. Alt while dragging disables snapping. Type straight on the label: click a selected text (or double-click any text, or press Enter) to edit it; Esc or a click outside finishes. Drop images or .label/.dymo files on the canvas; paste images with Ctrl+V.</p>`;
     return s;
   }
 
@@ -567,6 +602,7 @@ const Editor = (() => {
     else if (mod && k === 'x') { if (E.copy()) E.remove(); }
     else if (k === 'delete' || k === 'backspace') { ev.preventDefault(); E.remove(); }
     else if (k === 'escape') { E.sel.clear(); render(true); }
+    else if ((k === 'enter' || k === 'f2') && !mod && E.sel.size === 1 && editable(selected()[0])) { ev.preventDefault(); E.editText(); }
     else if (k.startsWith('arrow')) {
       ev.preventDefault(); const s = ev.shiftKey ? 2 : 0.5;
       E.nudge(k === 'arrowleft' ? -s : k === 'arrowright' ? s : 0, k === 'arrowup' ? -s : k === 'arrowdown' ? s : 0);

@@ -30,7 +30,23 @@ const Render = (() => {
     else if (o.valign === 'bottom') top = ch - blockH;
     const x = o.align === 'center' ? cw / 2 : o.align === 'right' ? cw : 0;
     const anchor = o.align === 'center' ? 'middle' : o.align === 'right' ? 'end' : 'start';
-    return { size, anchor, lines: lines.map((t, i) => ({ t, x, y: top + asc * size + i * lh * size })) };
+    return { size, anchor, asc: asc * size, step: lh * size, lines: lines.map((t, i) => ({ t, x, y: top + asc * size + i * lh * size })) };
+  }
+
+  // Character offset in o.text closest to a point (mm, inside the content box).
+  function textIndexAt(o, cw, ch, px, py) {
+    const L = layoutText(o, cw, ch);
+    const i = Math.max(0, Math.min(L.lines.length - 1, Math.floor((py - (L.lines[0].y - L.asc)) / L.step)));
+    const line = L.lines[i].t;
+    ctx.font = fontCss(o, 100);
+    const k = L.size / 100, full = ctx.measureText(line).width * k;
+    const x0 = L.anchor === 'middle' ? L.lines[i].x - full / 2 : L.anchor === 'end' ? L.lines[i].x - full : L.lines[i].x;
+    let best = 0, bestD = Infinity;
+    for (let c = 0; c <= line.length; c++) {
+      const d = Math.abs(x0 + ctx.measureText(line.slice(0, c)).width * k - px);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return L.lines.slice(0, i).reduce((n, l) => n + l.t.length + 1, 0) + best;
   }
 
   function contentBox(o) {
@@ -138,5 +154,5 @@ const Render = (() => {
     return c.toDataURL('image/png').split(',')[1];
   }
 
-  return { objectSvg, labelSvg, rasterize, objectPng, contentBox, layoutText, MONO_FILTER };
+  return { objectSvg, labelSvg, rasterize, objectPng, contentBox, layoutText, textIndexAt, MONO_FILTER };
 })();

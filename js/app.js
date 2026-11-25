@@ -124,7 +124,7 @@
 
   // ---------- add tools ----------
   const tools = {
-    text: () => E.add(makeObject('text', { text: 'Text', w: 40, h: 9 })),
+    text: () => { E.add(makeObject('text', { text: 'Text', w: 40, h: 9 })); E.editText(); },
     image: () => { replaceTarget = null; $('#fileImage').click(); },
     icon: () => $('#dlgIcon').showModal(),
     rect: () => E.add(makeObject('shape', { shape: 'rect', w: 20, h: 12 })),
